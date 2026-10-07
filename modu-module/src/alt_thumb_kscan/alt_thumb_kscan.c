@@ -84,6 +84,34 @@ static int modu_alt_thumb_kscan_enable_callback(const struct device *dev)
 {
     const struct modu_alt_thumb_kscan_config *cfg = dev->config;
 
+
+#if IS_ENABLED(CONFIG_PM_DEVICE)
+    /* MODU WAKEUP PROPAGATION */
+
+    /*
+     * alt_thumb_kscan is the physical-layout kscan.
+     * Keep this wrapper enabled as a wake source.
+     */
+    if (pm_device_wakeup_is_capable(dev) &&
+        !pm_device_wakeup_is_enabled(dev)) {
+        if (!pm_device_wakeup_enable(dev, true)) {
+            LOG_ERR("Failed to enable wakeup for alt thumb kscan");
+        }
+    }
+
+    /*
+     * Pass wakeup capability to the wrapped composite kscan.
+     * Its enable callback will then propagate it to matrix/direct.
+     */
+    if (pm_device_wakeup_is_capable(cfg->kscan) &&
+        !pm_device_wakeup_is_enabled(cfg->kscan)) {
+        if (!pm_device_wakeup_enable(cfg->kscan, true)) {
+            LOG_ERR("Failed to enable wakeup for wrapped kscan %s",
+                    cfg->kscan->name);
+        }
+    }
+#endif
+
 #if IS_ENABLED(CONFIG_PM_DEVICE_RUNTIME)
     if (!pm_device_runtime_is_enabled(dev) && pm_device_runtime_is_enabled(cfg->kscan)) {
         pm_device_runtime_get(cfg->kscan);
